@@ -8,9 +8,11 @@ This document outlines the development plan for a Textual-based TUI application 
 
 The primary goal of this milestone is to establish the project foundation and implement a robust and secure authentication flow with Google's services.
 
--   [ ] **Task 1.1: Initial Project Scaffolding**
-    -   Set up the basic project structure, including `pyproject.toml` for dependencies (e.g., `textual`, `google-api-python-client`, `google-auth-oauthlib`).
-    -   Create the main entry point file, `main.py`.
+-   [x] **Task 1.1: Initial Project Scaffolding**
+    -   [x] Set up the basic project structure, including `pyproject.toml` for dependencies (`textual`, `google-api-python-client`, `google-auth-oauthlib`).
+    -   [x] Create the main entry point file, `main.py`, with a basic Textual app structure.
+    -   [x] Implement a global exception handler in the main app class.
+    -   [x] Configure file-based logging to `gmailctrl.log`.
 
 -   [ ] **Task 1.2: Implement OAuth 2.0 Authentication**
     -   Create a module to handle Google API authentication.
