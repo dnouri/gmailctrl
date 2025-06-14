@@ -61,11 +61,11 @@ This milestone involves building the user interface and connecting it to the cor
     -   [x] Implement multi-row selection (e.g., using the spacebar).
     -   [x] Provide a visual indicator for selected rows.
 
--   [ ] **Task 3.3: Detail Screen - Group Detail View**
-    -   [ ] This is a new, full-screen view that is displayed when a user selects a sender from the main list.
-    -   [ ] It must display the summary statistics for the selected group at the top.
-    -   [ ] Below the summary, it must display a list of all individual emails within that group, showing at least the subject and date of each email.
-    -   [ ] Provide two clear action buttons/options: `Archive All` and `Delete All`.
+-   [x] **Task 3.3: Detail Screen - Group Detail View**
+    -   [x] This is a new, full-screen view that is displayed when a user selects a sender from the main list.
+    -   [x] It must display the summary statistics for the selected group at the top.
+    -   [x] Below the summary, it must display a list of all individual emails within that group, showing at least the subject and date of each email.
+    -   [x] Provide two clear action buttons/options: `Archive All` and `Delete All`.
 
 -   [ ] **Task 3.4: Implement Action and Navigation Flow**
     -   [ ] **Sub-task 3.4.1: Main Screen Bulk Actions**

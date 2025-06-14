@@ -3,7 +3,7 @@ import os.path
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parseaddr, parsedate_to_datetime
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -92,15 +92,17 @@ def fetch_emails(
     creds: Credentials,
     status_callback: Callable[[str], None],
     progress_callback: Callable[[int, int], None],
+    limit: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """
     Fetches a list of emails from the user's inbox using the Gmail API.
-    This function handles pagination to retrieve all emails.
+    This function handles pagination to retrieve all emails up to an optional limit.
 
     Args:
         creds: Authorized Google API credentials.
         status_callback: A callable to send status updates to the UI.
         progress_callback: A callable to send progress updates to the UI.
+        limit: An optional maximum number of emails to fetch.
 
     Returns:
         A list of email message resources, or an empty list if none are found.
@@ -109,7 +111,7 @@ def fetch_emails(
     service = build("gmail", "v1", credentials=creds)
 
     status_callback("Fetching email list from INBOX...")
-    logging.info("Fetching all message IDs from INBOX.")
+    logging.info("Fetching message IDs from INBOX.")
 
     messages = []
     page_token = None
@@ -125,8 +127,12 @@ def fetch_emails(
         response = request.execute()
         messages.extend(response.get("messages", []))
         page_token = response.get("nextPageToken")
-        if not page_token:
+
+        if not page_token or (limit and len(messages) >= limit):
             break
+
+    if limit:
+        messages = messages[:limit]
 
     if not messages:
         logging.info("No messages found in INBOX.")

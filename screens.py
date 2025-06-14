@@ -1,3 +1,4 @@
+from rich.markup import escape
 from textual import on
 from textual.app import App
 from textual.containers import VerticalScroll, Horizontal
@@ -14,12 +15,6 @@ class SenderListScreen(Screen):
         ("ctrl+r", "refresh", "Refresh"),
         ("space", "toggle_selection", "Toggle Selection"),
     ]
-
-    CSS = """
-    .selected-row {
-        background: $accent-darken-2;
-    }
-    """
 
     def __init__(self, email_groups: list[EmailGroup]):
         self.email_groups = email_groups
@@ -42,10 +37,11 @@ class SenderListScreen(Screen):
         """Populate the DataTable with email group information."""
         table = self.query_one(DataTable)
         table.clear(columns=True)
-        # Use fixed column widths to prevent long text from pushing columns off-screen.
+        # Add a checkbox column for selection and adjust other column widths.
+        table.add_column("✓", key="selected", width=3)
         table.add_column("Sender", width=35)
         table.add_column("Emails", width=8)
-        table.add_column("Latest Subject", width=50)
+        table.add_column("Latest Subject", width=47)
         table.add_column("Newest Date", width=12)
         table.add_column("Unsubscribe", width=12)
 
@@ -56,6 +52,7 @@ class SenderListScreen(Screen):
             unsubscribe_tag = "[U]" if group.has_unsubscribe else ""
             sender_display = group.sender_name or group.sender_email
             table.add_row(
+                escape("[ ]"),  # Checkbox starts as unchecked
                 sender_display,
                 group.count,
                 group.newest_subject,
@@ -74,14 +71,14 @@ class SenderListScreen(Screen):
         if not table.row_count:
             return
 
-        row_key = table.get_row_key(table.cursor_row)
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
 
         if row_key in self.selected_rows:
             self.selected_rows.remove(row_key)
-            table.remove_class("selected-row", row_key=row_key)
+            table.update_cell(row_key, "selected", escape("[ ]"))
         else:
             self.selected_rows.add(row_key)
-            table.add_class("selected-row", row_key=row_key)
+            table.update_cell(row_key, "selected", escape("[x]"))
 
     @on(DataTable.RowSelected)
     def on_row_selected(self, event: DataTable.RowSelected) -> None:
@@ -107,6 +104,7 @@ class GroupDetailScreen(Screen):
             yield Static(id="summary")
             yield DataTable(id="email-list")
         with Horizontal():
+            yield Button("Back", id="back")
             yield Button("Archive All", variant="primary", id="archive")
             yield Button("Delete All", variant="error", id="delete")
         yield Footer()
@@ -137,3 +135,8 @@ Date Range:    {g.oldest_date.strftime('%Y-%m-%d')} to {g.newest_date.strftime('
 Attachments:   {g.total_attachments}
 Unsubscribe:   {'Yes' if g.has_unsubscribe else 'No'}
 """
+
+    @on(Button.Pressed, "#back")
+    def on_button_pressed_back(self, event: Button.Pressed) -> None:
+        """Go back to the previous screen."""
+        self.app.pop_screen()

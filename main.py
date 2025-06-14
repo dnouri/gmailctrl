@@ -1,7 +1,8 @@
+import argparse
 import logging
 import sys
 import traceback
-from typing import List
+from typing import List, Optional
 
 from google.oauth2.credentials import Credentials
 from textual.app import App, ComposeResult
@@ -19,10 +20,17 @@ from screens import SenderListScreen
 class GmailCtrlApp(App):
     """A Textual app to manage Gmail."""
 
-    BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
+    BINDINGS = [
+        ("d", "toggle_dark", "Toggle dark mode"),
+        ("q", "quit", "Quit"),
+    ]
 
     creds: Credentials | None = None
     email_groups: List[EmailGroup] | None = None
+
+    def __init__(self, limit: Optional[int] = None):
+        super().__init__()
+        self.limit = limit
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -71,6 +79,7 @@ class GmailCtrlApp(App):
             creds=self.creds,
             status_callback=self.update_status,
             progress_callback=self.update_progress,
+            limit=self.limit,
         )
         self.email_groups = analyze_and_group_emails(
             emails=emails,
@@ -88,6 +97,7 @@ class GmailCtrlApp(App):
             creds=self.creds,
             status_callback=self.update_status,
             progress_callback=self.update_progress,
+            limit=self.limit,
         )
         self.email_groups = analyze_and_group_emails(
             emails=emails,
@@ -118,6 +128,14 @@ class GmailCtrlApp(App):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="A TUI to manage bulk email in Gmail.")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        help="Limit the number of recent emails to fetch. For faster development loops.",
+    )
+    args = parser.parse_args()
+
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -125,7 +143,7 @@ def main():
         filemode="w",
     )
     logging.info("Application starting up.")
-    app = GmailCtrlApp()
+    app = GmailCtrlApp(limit=args.limit)
     app.run()
     logging.info("Application shutting down.")
 
