@@ -5,7 +5,7 @@ import traceback
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, Static
 
-from gmail_client import get_credentials
+from gmail_client import get_credentials, fetch_emails
 
 
 class GmailCtrlApp(App):
@@ -16,26 +16,39 @@ class GmailCtrlApp(App):
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
-        yield Static("Authenticating... please check your browser.", id="auth-status")
+        yield Static("Initializing...", id="auth-status")
         yield Footer()
         logging.info("App composed.")
 
     def on_mount(self) -> None:
         """Called when the app is mounted."""
-        logging.info("App mounted. Initializing authentication.")
-        self.run_worker(self.authenticate, exclusive=True)
+        logging.info("App mounted. Starting login and fetch process.")
+        self.run_worker(self.login_and_fetch, exclusive=True, thread=True)
 
-    def authenticate(self) -> None:
-        """Run the authentication process in a worker."""
+    def update_status(self, message: str) -> None:
+        """Helper method to update the status Static widget from any thread."""
+        logging.info(f"UI Status Update: {message}")
+        # Use call_from_thread to ensure UI updates happen on the main thread.
+        self.call_from_thread(self.query_one("#auth-status").update, message)
+
+    def login_and_fetch(self) -> None:
+        """Worker that handles authentication and initial email fetching."""
+        # The get_credentials function handles the entire OAuth flow, including
+        # browser interaction and token refreshing. It will raise an exception
+        # on failure (e.g., credentials.json not found), which will be
+        # caught by the app's on_exception handler.
+        self.update_status("Authenticating... please check your browser if needed.")
         creds = get_credentials()
-        if creds:
-            self.query_one("#auth-status").update("Authentication successful.")
-            logging.info("Authentication successful.")
-        else:
-            # This path should ideally not be reached due to the exception handling
-            # in get_credentials, but it's here for completeness.
-            self.query_one("#auth-status").update("[bold red]Authentication failed.[/]")
-            logging.error("Authentication failed to return credentials.")
+        logging.info("Authentication successful.")
+
+        # Now, fetch emails using the obtained credentials.
+        # The fetch_emails function will use the status_callback to post
+        # progress updates to the UI.
+        emails = fetch_emails(creds=creds, status_callback=self.update_status)
+
+        final_message = f"Scan complete. Found {len(emails)} emails to analyze."
+        self.update_status(final_message)
+        logging.info(final_message)
 
     def on_exception(self, exception: Exception) -> None:
         """Called when an unhandled exception is raised."""

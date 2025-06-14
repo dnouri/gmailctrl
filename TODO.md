@@ -25,7 +25,7 @@ The primary goal of this milestone is to establish the project foundation and im
 
 This milestone focuses on creating the non-UI logic for fetching, parsing, and acting upon emails. This code should be independent of the TUI.
 
--   [ ] **Task 2.1: Implement Email Fetching**
+-   [x] **Task 2.1: Implement Email Fetching**
     -   Create a function to fetch a list of emails from the user's Gmail account.
     -   Initially, this function will only query for emails present in the `INBOX`.
     -   The number of recent emails to scan should be configurable, with a sensible default (e.g., 1000).
