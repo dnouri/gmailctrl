@@ -26,18 +26,18 @@ The primary goal of this milestone is to establish the project foundation and im
 This milestone focuses on creating the non-UI logic for fetching, parsing, and acting upon emails. This code should be independent of the TUI.
 
 -   [x] **Task 2.1: Implement Email Fetching**
-    -   Create a function to fetch a list of emails from the user's Gmail account.
-    -   Initially, this function will only query for emails present in the `INBOX`.
-    -   The number of recent emails to scan should be configurable, with a sensible default (e.g., 1000).
+    -   [x] Create a function to fetch a list of emails from the user's Gmail account.
+    -   [x] Initially, this function will only query for emails present in the `INBOX`.
+    -   [x] The number of recent emails to scan should be configurable, with a sensible default (e.g., 1000).
 
--   [ ] **Task 2.2: Implement Email Grouping and Analysis**
-    -   Create a function that takes a list of fetched emails and groups them by sender (`From` header).
-    -   For each group, the function must compute the following summary statistics:
-        -   Sender's name and email address.
-        -   Total count of emails in the group.
-        -   The date of the oldest and newest email in the group.
-        -   The total count of attachments across all emails in the group.
-        -   A boolean flag indicating if at least one email in the group contains a `List-Unsubscribe` header.
+-   [x] **Task 2.2: Implement Email Grouping and Analysis**
+    -   [x] Create a function that takes a list of fetched emails and groups them by sender (`From` header).
+    -   [x] For each group, the function must compute the following summary statistics:
+        -   [x] Sender's name and email address.
+        -   [x] Total count of emails in the group.
+        -   [x] The date of the oldest and newest email in the group.
+        -   [x] The total count of attachments across all emails in the group.
+        -   [x] A boolean flag indicating if at least one email in the group contains a `List-Unsubscribe` header.
 
 -   [ ] **Task 2.3: Implement Bulk Action Functions**
     -   Create a function to bulk archive emails given a list of email IDs.

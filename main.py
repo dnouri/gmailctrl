@@ -5,7 +5,7 @@ import traceback
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, Static
 
-from gmail_client import get_credentials, fetch_emails
+from gmail_client import get_credentials, fetch_emails, analyze_and_group_emails
 
 
 class GmailCtrlApp(App):
@@ -46,7 +46,27 @@ class GmailCtrlApp(App):
         # progress updates to the UI.
         emails = fetch_emails(creds=creds, status_callback=self.update_status)
 
-        final_message = f"Scan complete. Found {len(emails)} emails to analyze."
+        # Analyze and group the fetched emails.
+        email_groups = analyze_and_group_emails(
+            emails=emails, status_callback=self.update_status
+        )
+
+        # For now, just log the result for verification.
+        # In the next milestone, we'll display this in the UI.
+        if email_groups:
+            logging.info("Top 5 email groups found:")
+            # Sort groups by count for logging purposes
+            sorted_groups = sorted(email_groups, key=lambda g: g.count, reverse=True)
+            for group in sorted_groups[:5]:
+                logging.info(
+                    f"  - Sender: {group.sender_email}, Count: {group.count}, "
+                    f"Newest: {group.newest_date.strftime('%Y-%m-%d')}"
+                )
+
+        final_message = (
+            f"Scan complete. Found {len(emails)} emails from "
+            f"{len(email_groups)} senders."
+        )
         self.update_status(final_message)
         logging.info(final_message)
 

@@ -1,5 +1,8 @@
 import logging
 import os.path
+from dataclasses import dataclass
+from datetime import datetime
+from email.utils import parseaddr, parsedate_to_datetime
 from typing import Any, Callable, Dict, List
 
 from google.auth.transport.requests import Request
@@ -12,6 +15,20 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 TOKEN_PATH = "token.json"
 CREDENTIALS_PATH = "credentials.json"
 GMAIL_API_BATCH_SIZE = 100
+
+
+@dataclass
+class EmailGroup:
+    """Represents a group of emails from a single sender."""
+
+    sender_name: str
+    sender_email: str
+    count: int
+    oldest_date: datetime
+    newest_date: datetime
+    total_attachments: int
+    has_unsubscribe: bool
+    email_ids: List[str]
 
 
 def get_credentials() -> Credentials:
@@ -134,3 +151,86 @@ def fetch_emails(
         f"Successfully fetched details for {len(emails)} out of {msg_count} emails."
     )
     return emails
+
+
+def analyze_and_group_emails(
+    emails: List[Dict[str, Any]], status_callback: Callable[[str], None]
+) -> List[EmailGroup]:
+    """
+    Analyzes a list of raw email data, grouping them by sender and calculating
+    summary statistics for each group.
+
+    Args:
+        emails: A list of raw email message resources from the Gmail API.
+        status_callback: A callable to send status updates to the UI.
+
+    Returns:
+        A list of EmailGroup objects, each representing a unique sender.
+    """
+    status_callback(f"Analyzing {len(emails)} emails...")
+    logging.info(f"Analyzing {len(emails)} emails.")
+
+    groups: Dict[str, EmailGroup] = {}
+
+    def get_header(headers: List[Dict[str, str]], name: str) -> str:
+        """Extracts a header value from a list of headers."""
+        for header in headers:
+            if header["name"].lower() == name.lower():
+                return header["value"]
+        return ""
+
+    for i, email_data in enumerate(emails):
+        if (i + 1) % 100 == 0:
+            status_callback(f"Analyzing emails... ({i + 1}/{len(emails)})")
+
+        headers = email_data.get("payload", {}).get("headers", [])
+
+        # Parse sender from the 'From' header.
+        from_header = get_header(headers, "From")
+        sender_name, sender_email = parseaddr(from_header)
+        if not sender_email:
+            logging.warning(f"Could not parse sender from header: '{from_header}'")
+            continue  # Skip emails where a sender email cannot be determined.
+
+        # Parse the date and handle potential timezone issues.
+        date_header = get_header(headers, "Date")
+        email_date = parsedate_to_datetime(date_header)
+
+        # Check for the presence of a List-Unsubscribe header.
+        has_unsubscribe_header = bool(get_header(headers, "List-Unsubscribe"))
+
+        # Count attachments by checking for parts with a 'filename'.
+        attachment_count = 0
+        if "parts" in email_data.get("payload", {}):
+            for part in email_data["payload"]["parts"]:
+                if part.get("filename"):
+                    attachment_count += 1
+
+        email_id = email_data["id"]
+
+        # Create a new group or update an existing one.
+        if sender_email not in groups:
+            groups[sender_email] = EmailGroup(
+                sender_name=sender_name or sender_email,
+                sender_email=sender_email,
+                count=1,
+                oldest_date=email_date,
+                newest_date=email_date,
+                total_attachments=attachment_count,
+                has_unsubscribe=has_unsubscribe_header,
+                email_ids=[email_id],
+            )
+        else:
+            group = groups[sender_email]
+            group.count += 1
+            group.total_attachments += attachment_count
+            if email_date < group.oldest_date:
+                group.oldest_date = email_date
+            if email_date > group.newest_date:
+                group.newest_date = email_date
+            if has_unsubscribe_header:
+                group.has_unsubscribe = True
+            group.email_ids.append(email_id)
+
+    logging.info(f"Grouped emails into {len(groups)} unique senders.")
+    return list(groups.values())
