@@ -26,6 +26,7 @@ class EmailGroup:
     count: int
     oldest_date: datetime
     newest_date: datetime
+    newest_subject: str
     total_attachments: int
     has_unsubscribe: bool
     email_ids: List[str]
@@ -79,15 +80,18 @@ def get_credentials() -> Credentials:
 
 
 def fetch_emails(
-    creds: Credentials, status_callback: Callable[[str], None], max_results: int = 1000
+    creds: Credentials,
+    status_callback: Callable[[str], None],
+    progress_callback: Callable[[int, int], None],
 ) -> List[Dict[str, Any]]:
     """
     Fetches a list of emails from the user's inbox using the Gmail API.
+    This function handles pagination to retrieve all emails.
 
     Args:
         creds: Authorized Google API credentials.
         status_callback: A callable to send status updates to the UI.
-        max_results: The maximum number of emails to fetch.
+        progress_callback: A callable to send progress updates to the UI.
 
     Returns:
         A list of email message resources, or an empty list if none are found.
@@ -96,15 +100,24 @@ def fetch_emails(
     service = build("gmail", "v1", credentials=creds)
 
     status_callback("Fetching email list from INBOX...")
-    logging.info(f"Fetching up to {max_results} message IDs from INBOX.")
-    # Get the list of message IDs
-    response = (
-        service.users()
-        .messages()
-        .list(userId="me", labelIds=["INBOX"], maxResults=max_results)
-        .execute()
-    )
-    messages = response.get("messages", [])
+    logging.info("Fetching all message IDs from INBOX.")
+
+    messages = []
+    page_token = None
+    page_count = 0
+    while True:
+        page_count += 1
+        status_callback(f"Fetching email list from INBOX (page {page_count})...")
+        request = (
+            service.users()
+            .messages()
+            .list(userId="me", labelIds=["INBOX"], pageToken=page_token)
+        )
+        response = request.execute()
+        messages.extend(response.get("messages", []))
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
 
     if not messages:
         logging.info("No messages found in INBOX.")
@@ -131,7 +144,9 @@ def fetch_emails(
     # Process messages in chunks, as the batch API has a limit.
     for i in range(0, msg_count, GMAIL_API_BATCH_SIZE):
         chunk = messages[i : i + GMAIL_API_BATCH_SIZE]
-        status_callback(f"Fetching details... ({i + len(chunk)}/{msg_count})")
+        processed_count = i + len(chunk)
+        status_callback(f"Fetching details... ({processed_count}/{msg_count})")
+        progress_callback(processed_count, msg_count)
 
         batch = service.new_batch_http_request(callback=batch_callback)
         for msg in chunk:
@@ -154,7 +169,9 @@ def fetch_emails(
 
 
 def analyze_and_group_emails(
-    emails: List[Dict[str, Any]], status_callback: Callable[[str], None]
+    emails: List[Dict[str, Any]],
+    status_callback: Callable[[str], None],
+    progress_callback: Callable[[int, int], None],
 ) -> List[EmailGroup]:
     """
     Analyzes a list of raw email data, grouping them by sender and calculating
@@ -163,12 +180,14 @@ def analyze_and_group_emails(
     Args:
         emails: A list of raw email message resources from the Gmail API.
         status_callback: A callable to send status updates to the UI.
+        progress_callback: A callable to send progress updates to the UI.
 
     Returns:
         A list of EmailGroup objects, each representing a unique sender.
     """
-    status_callback(f"Analyzing {len(emails)} emails...")
-    logging.info(f"Analyzing {len(emails)} emails.")
+    total_emails = len(emails)
+    status_callback(f"Analyzing {total_emails} emails...")
+    logging.info(f"Analyzing {total_emails} emails.")
 
     groups: Dict[str, EmailGroup] = {}
 
@@ -180,8 +199,10 @@ def analyze_and_group_emails(
         return ""
 
     for i, email_data in enumerate(emails):
-        if (i + 1) % 100 == 0:
-            status_callback(f"Analyzing emails... ({i + 1}/{len(emails)})")
+        processed_count = i + 1
+        if processed_count % 100 == 0:
+            status_callback(f"Analyzing emails... ({processed_count}/{total_emails})")
+        progress_callback(processed_count, total_emails)
 
         headers = email_data.get("payload", {}).get("headers", [])
 
@@ -195,6 +216,7 @@ def analyze_and_group_emails(
         # Parse the date and handle potential timezone issues.
         date_header = get_header(headers, "Date")
         email_date = parsedate_to_datetime(date_header)
+        subject = get_header(headers, "Subject")
 
         # Check for the presence of a List-Unsubscribe header.
         has_unsubscribe_header = bool(get_header(headers, "List-Unsubscribe"))
@@ -216,6 +238,7 @@ def analyze_and_group_emails(
                 count=1,
                 oldest_date=email_date,
                 newest_date=email_date,
+                newest_subject=subject,
                 total_attachments=attachment_count,
                 has_unsubscribe=has_unsubscribe_header,
                 email_ids=[email_id],
@@ -228,6 +251,7 @@ def analyze_and_group_emails(
                 group.oldest_date = email_date
             if email_date > group.newest_date:
                 group.newest_date = email_date
+                group.newest_subject = subject
             if has_unsubscribe_header:
                 group.has_unsubscribe = True
             group.email_ids.append(email_id)
@@ -241,6 +265,7 @@ def _perform_bulk_action(
     email_ids: List[str],
     action_body: Dict[str, Any],
     status_callback: Callable[[str], None],
+    progress_callback: Callable[[int, int], None],
     action_name: str,
 ) -> None:
     """Helper to perform a bulk action (archive, delete) on a list of emails."""
@@ -252,9 +277,11 @@ def _perform_bulk_action(
     # the same batch size as fetching for consistency.
     for i in range(0, total_ids, GMAIL_API_BATCH_SIZE):
         chunk = email_ids[i : i + GMAIL_API_BATCH_SIZE]
+        processed_count = i + len(chunk)
         status_callback(
-            f"{action_name.capitalize()} emails... ({i + len(chunk)}/{total_ids})"
+            f"{action_name.capitalize()} emails... ({processed_count}/{total_ids})"
         )
+        progress_callback(processed_count, total_ids)
         body = {"ids": chunk, **action_body}
         service.users().messages().batchModify(userId="me", body=body).execute()
 
@@ -265,6 +292,7 @@ def bulk_archive_emails(
     creds: Credentials,
     email_ids: List[str],
     status_callback: Callable[[str], None],
+    progress_callback: Callable[[int, int], None],
 ) -> None:
     """Archives a list of emails by removing them from the INBOX."""
     _perform_bulk_action(
@@ -272,6 +300,7 @@ def bulk_archive_emails(
         email_ids=email_ids,
         action_body={"removeLabelIds": ["INBOX"]},
         status_callback=status_callback,
+        progress_callback=progress_callback,
         action_name="archive",
     )
 
@@ -280,6 +309,7 @@ def bulk_delete_emails(
     creds: Credentials,
     email_ids: List[str],
     status_callback: Callable[[str], None],
+    progress_callback: Callable[[int, int], None],
 ) -> None:
     """Deletes a list of emails by moving them to the TRASH."""
     _perform_bulk_action(
@@ -287,5 +317,6 @@ def bulk_delete_emails(
         email_ids=email_ids,
         action_body={"addLabelIds": ["TRASH"]},
         status_callback=status_callback,
+        progress_callback=progress_callback,
         action_name="delete",
     )

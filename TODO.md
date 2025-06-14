@@ -51,13 +51,13 @@ This milestone involves building the user interface and connecting it to the cor
     -   Set up the main Textual `App` class.
     -   **Crucially**, implement a single, global exception handler. As per the design, any unhandled exception from any part of the application should be caught here. The handler must print the full exception traceback to `stderr` and then cleanly terminate the application. There should be minimal to no `try...except` blocks in the rest of the application code.
 
--   [ ] **Task 3.2: Main Screen - Sender List View**
-    -   This is the default screen after a successful login.
-    -   It should display a list of the sender groups.
-    -   The list must be sorted by the date of the most recent email in each group (newest first).
-    -   Each item in the list must display the sender, the email count, and a visual indicator (e.g., a `[U]` tag) if the group contains `List-Unsubscribe` headers.
-    -   Implement a manual refresh mechanism (e.g., via a `Ctrl+R` key binding) that triggers a full re-scan and rebuilds the list.
-    -   Display a loading indicator (e.g., a progress bar or a "Knight Rider" style animation) during the initial scan and subsequent refreshes.
+-   [x] **Task 3.2: Main Screen - Sender List View**
+    -   [x] This is the default screen after a successful login.
+    -   [x] It should display a list of the sender groups.
+    -   [x] The list must be sorted by the date of the most recent email in each group (newest first).
+    -   [x] Each item in the list must display the sender, the email count, and a visual indicator (e.g., a `[U]` tag) if the group contains `List-Unsubscribe` headers.
+    -   [x] Implement a manual refresh mechanism (e.g., via a `Ctrl+R` key binding) that triggers a full re-scan and rebuilds the list.
+    -   [x] Display a loading indicator (e.g., a progress bar or a "Knight Rider" style animation) during the initial scan and subsequent refreshes.
 
 -   [ ] **Task 3.3: Detail Screen - Group Detail View**
     -   This is a new, full-screen view that is displayed when a user selects a sender from the main list.
