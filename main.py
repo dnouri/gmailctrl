@@ -13,6 +13,8 @@ from gmail_client import (
     fetch_emails,
     analyze_and_group_emails,
     EmailGroup,
+    bulk_archive_emails,
+    bulk_delete_emails,
 )
 from screens import SenderListScreen
 
@@ -111,9 +113,40 @@ class GmailCtrlApp(App):
 
     def action_refresh_scan(self) -> None:
         """Starts the refresh worker."""
-        self.pop_screen()
+        if isinstance(self.screen, SenderListScreen):
+            self.pop_screen()
         self.show_loading_indicator(True)
         self.run_worker(self.perform_refresh_scan, exclusive=True, thread=True)
+
+    def perform_bulk_action(self, email_ids: List[str], action: str) -> None:
+        """
+        Shows loading indicator and runs a bulk action (archive/delete) in a worker.
+        Refreshes the list upon completion.
+        """
+        if isinstance(self.screen, SenderListScreen):
+            self.pop_screen()
+        self.show_loading_indicator(True)
+
+        def worker() -> None:
+            """The work to be done in the background."""
+            action_name_capitalized = action.capitalize()
+            self.update_status(f"{action_name_capitalized}ing {len(email_ids)} emails...")
+
+            action_func = (
+                bulk_archive_emails if action == "archive" else bulk_delete_emails
+            )
+            action_func(
+                creds=self.creds,
+                email_ids=email_ids,
+                status_callback=self.update_status,
+                progress_callback=self.update_progress,
+            )
+
+            # After the action is complete, run the refresh logic.
+            # We are already in a worker thread, so we can call this directly.
+            self.perform_refresh_scan()
+
+        self.run_worker(worker, exclusive=True, thread=True)
 
     def on_exception(self, exception: Exception) -> None:
         """Called when an unhandled exception is raised."""

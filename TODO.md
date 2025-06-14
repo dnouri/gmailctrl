@@ -67,34 +67,13 @@ This milestone involves building the user interface and connecting it to the cor
     -   [x] Below the summary, it must display a list of all individual emails within that group, showing at least the subject and date of each email.
     -   [x] Provide two clear action buttons/options: `Archive All` and `Delete All`.
 
--   [ ] **Task 3.4: Implement Action and Navigation Flow**
-    -   [ ] **Sub-task 3.4.1: Main Screen Bulk Actions**
-        -   [ ] Add key bindings to trigger bulk archive/delete on selected rows (e.g., `a` and `d`).
-        -   [ ] Implement a confirmation dialog that summarizes the action (e.g., "Archive 123 emails from 4 senders?").
-        -   [ ] Upon confirmation, trigger the bulk action functions for all selected groups.
-        -   [ ] After the action, automatically refresh the sender list.
-    -   [ ] **Sub-task 3.4.2: Detail Screen Actions**
-        -   [ ] When a user selects `Archive All` or `Delete All` on the detail screen, show a confirmation dialog.
-        -   [ ] Upon confirmation, trigger the bulk action function for that single group.
-        -   [ ] After a successful action, navigate back to the main sender list and refresh it.
-
-### Milestone 4: Testing Plan
-
--   [ ] **Task 4.1: Unit Tests**
-    -   Write unit tests for the email grouping and analysis logic using mock email data to ensure correct calculation of counts, dates, attachments, and the unsubscribe flag.
-
--   [ ] **Task 4.2: Integration Tests**
-    -   Write integration tests for the Gmail API interaction layer.
-    -   Use mocking/patching to simulate API responses from Google to test:
-        -   The authentication flow.
-        -   Email fetching and parsing.
-        -   Correct formation of API requests for archive/delete actions.
-
--   [ ] **Task 4.3: Manual End-to-End Testing**
-    -   Perform a full user journey test with a real (but non-critical) Gmail account.
-    -   Verify the one-time browser login and subsequent automatic logins.
-    -   Verify the initial scan, list sorting, and display.
-    -   Verify navigation to the detail view and back.
-    -   Verify the confirmation dialog and the successful execution of both archive and delete actions.
-    -   Verify the manual refresh functionality.
-    -   Verify the "crash on error" strategy by simulating failures (e.g., disconnecting from the internet during an API call) and ensuring the program exits with a clear traceback to `stderr`.
+-   [x] **Task 3.4: Implement Action and Navigation Flow**
+    -   [x] **Sub-task 3.4.1: Main Screen Bulk Actions**
+        -   [x] Add key bindings to trigger bulk archive/delete on selected rows (e.g., `a` and `d`).
+        -   [x] Implement a confirmation dialog that summarizes the action (e.g., "Archive 123 emails from 4 senders?").
+        -   [x] Upon confirmation, trigger the bulk action functions for all selected groups.
+        -   [x] After the action, automatically refresh the sender list.
+    -   [x] **Sub-task 3.4.2: Detail Screen Actions**
+        -   [x] When a user selects `Archive All` or `Delete All` on the detail screen, show a confirmation dialog.
+        -   [x] Upon confirmation, trigger the bulk action function for that single group.
+        -   [x] After a successful action, navigate back to the main sender list and refresh it.

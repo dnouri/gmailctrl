@@ -1,17 +1,48 @@
+from typing import Callable
+
 from rich.markup import escape
 from textual import on
-from textual.app import App
-from textual.containers import VerticalScroll, Horizontal
-from textual.screen import Screen
+from textual.app import ComposeResult
+from textual.containers import VerticalScroll, Horizontal, Grid
+from textual.screen import Screen, ModalScreen
 from textual.widgets import Header, Footer, DataTable, Static, Button
 
 from gmail_client import EmailGroup
+
+
+class ConfirmationScreen(ModalScreen[bool]):
+    """A modal screen to confirm an action."""
+
+    def __init__(self, prompt: str):
+        self.prompt = prompt
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Static(self.prompt, id="confirmation-prompt"),
+            Horizontal(
+                Button("Confirm", variant="primary", id="confirm"),
+                Button("Cancel", variant="default", id="cancel"),
+                classes="buttons",
+            ),
+            id="confirmation-dialog",
+        )
+
+    def on_mount(self) -> None:
+        """Focus the confirm button when the screen is mounted."""
+        self.query_one("#confirm", Button).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Dismiss the screen, returning True if 'Confirm' was pressed."""
+        self.dismiss(event.button.id == "confirm")
 
 
 class SenderListScreen(Screen):
     """The main screen displaying the list of email groups."""
 
     BINDINGS = [
+        ("a", "archive_selected", "Archive"),
+        ("d", "delete_selected", "Delete"),
         ("ctrl+r", "refresh", "Refresh"),
         ("space", "toggle_selection", "Toggle Selection"),
     ]
@@ -80,6 +111,32 @@ class SenderListScreen(Screen):
             self.selected_rows.add(row_key)
             table.update_cell(row_key, "selected", escape("[x]"))
 
+    def _handle_bulk_action(self, action: str) -> None:
+        """Generic handler for archive/delete actions on selected rows."""
+        if not self.selected_rows:
+            self.app.bell()
+            return
+
+        selected_groups = [
+            g for g in self.email_groups if g.sender_email in self.selected_rows
+        ]
+        email_ids = [email.id for group in selected_groups for email in group.emails]
+
+        def on_confirm(confirmed: bool) -> None:
+            if confirmed:
+                self.app.perform_bulk_action(email_ids, action)
+
+        prompt = f"{action.capitalize()} {len(email_ids)} emails from {len(selected_groups)} senders?"
+        self.app.push_screen(ConfirmationScreen(prompt), on_confirm)
+
+    def action_archive_selected(self) -> None:
+        """Trigger archive for selected rows."""
+        self._handle_bulk_action("archive")
+
+    def action_delete_selected(self) -> None:
+        """Trigger delete for selected rows."""
+        self._handle_bulk_action("delete")
+
     @on(DataTable.RowSelected)
     def on_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle the user selecting a row in the DataTable."""
@@ -140,3 +197,25 @@ Unsubscribe:   {'Yes' if g.has_unsubscribe else 'No'}
     def on_button_pressed_back(self, event: Button.Pressed) -> None:
         """Go back to the previous screen."""
         self.app.pop_screen()
+
+    def _handle_action(self, action: str) -> None:
+        """Generic handler for archive/delete actions on the current group."""
+        email_ids = [email.id for email in self.email_group.emails]
+
+        def on_confirm(confirmed: bool) -> None:
+            if confirmed:
+                self.app.pop_screen()
+                self.app.perform_bulk_action(email_ids, action)
+
+        prompt = f"{action.capitalize()} all {self.email_group.count} emails from {self.email_group.sender_email}?"
+        self.app.push_screen(ConfirmationScreen(prompt), on_confirm)
+
+    @on(Button.Pressed, "#archive")
+    def on_button_pressed_archive(self, event: Button.Pressed) -> None:
+        """Handle archive button press."""
+        self._handle_action("archive")
+
+    @on(Button.Pressed, "#delete")
+    def on_button_pressed_delete(self, event: Button.Pressed) -> None:
+        """Handle delete button press."""
+        self._handle_action("delete")
