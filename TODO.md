@@ -39,9 +39,9 @@ This milestone focuses on creating the non-UI logic for fetching, parsing, and a
         -   [x] The total count of attachments across all emails in the group.
         -   [x] A boolean flag indicating if at least one email in the group contains a `List-Unsubscribe` header.
 
--   [ ] **Task 2.3: Implement Bulk Action Functions**
-    -   Create a function to bulk archive emails given a list of email IDs.
-    -   Create a function to bulk delete (move to trash) emails given a list of email IDs.
+-   [x] **Task 2.3: Implement Bulk Action Functions**
+    -   [x] Create a function to bulk archive emails given a list of email IDs.
+    -   [x] Create a function to bulk delete (move to trash) emails given a list of email IDs.
 
 ### Milestone 3: Textual TUI Implementation
 

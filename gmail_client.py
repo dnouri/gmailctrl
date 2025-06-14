@@ -234,3 +234,58 @@ def analyze_and_group_emails(
 
     logging.info(f"Grouped emails into {len(groups)} unique senders.")
     return list(groups.values())
+
+
+def _perform_bulk_action(
+    creds: Credentials,
+    email_ids: List[str],
+    action_body: Dict[str, Any],
+    status_callback: Callable[[str], None],
+    action_name: str,
+) -> None:
+    """Helper to perform a bulk action (archive, delete) on a list of emails."""
+    service = build("gmail", "v1", credentials=creds)
+    total_ids = len(email_ids)
+    logging.info(f"Performing bulk {action_name} on {total_ids} emails.")
+
+    # The batchModify endpoint can take up to 1000 IDs at a time, but we use
+    # the same batch size as fetching for consistency.
+    for i in range(0, total_ids, GMAIL_API_BATCH_SIZE):
+        chunk = email_ids[i : i + GMAIL_API_BATCH_SIZE]
+        status_callback(
+            f"{action_name.capitalize()} emails... ({i + len(chunk)}/{total_ids})"
+        )
+        body = {"ids": chunk, **action_body}
+        service.users().messages().batchModify(userId="me", body=body).execute()
+
+    logging.info(f"Bulk {action_name} completed for {total_ids} emails.")
+
+
+def bulk_archive_emails(
+    creds: Credentials,
+    email_ids: List[str],
+    status_callback: Callable[[str], None],
+) -> None:
+    """Archives a list of emails by removing them from the INBOX."""
+    _perform_bulk_action(
+        creds=creds,
+        email_ids=email_ids,
+        action_body={"removeLabelIds": ["INBOX"]},
+        status_callback=status_callback,
+        action_name="archive",
+    )
+
+
+def bulk_delete_emails(
+    creds: Credentials,
+    email_ids: List[str],
+    status_callback: Callable[[str], None],
+) -> None:
+    """Deletes a list of emails by moving them to the TRASH."""
+    _perform_bulk_action(
+        creds=creds,
+        email_ids=email_ids,
+        action_body={"addLabelIds": ["TRASH"]},
+        status_callback=status_callback,
+        action_name="delete",
+    )
