@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Credentials
+token.json
+credentials.json
+
+# Logs
+*.log

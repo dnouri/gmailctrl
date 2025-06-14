@@ -14,12 +14,12 @@ The primary goal of this milestone is to establish the project foundation and im
     -   [x] Implement a global exception handler in the main app class.
     -   [x] Configure file-based logging to `gmailctrl.log`.
 
--   [ ] **Task 1.2: Implement OAuth 2.0 Authentication**
-    -   Create a module to handle Google API authentication.
-    -   The flow must be browser-based (OAuth 2.0 Installed Application flow).
-    -   On the first run, the application should guide the user to authorize access via their web browser.
-    -   Successfully obtained credentials (access and refresh tokens) must be stored securely on the user's local machine (e.g., in a file like `token.json`).
-    -   On subsequent runs, the application should automatically use the stored refresh token to get a new access token without requiring user interaction, unless the token is revoked or expired.
+-   [x] **Task 1.2: Implement OAuth 2.0 Authentication**
+    -   [x] Create a module to handle Google API authentication.
+    -   [x] The flow must be browser-based (OAuth 2.0 Installed Application flow).
+    -   [x] On the first run, the application should guide the user to authorize access via their web browser.
+    -   [x] Successfully obtained credentials (access and refresh tokens) must be stored securely on the user's local machine (e.g., in a file like `token.json`).
+    -   [x] On subsequent runs, the application should automatically use the stored refresh token to get a new access token without requiring user interaction, unless the token is revoked or expired.
 
 ### Milestone 2: Core Gmail API Interaction Logic
 
