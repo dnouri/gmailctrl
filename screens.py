@@ -10,10 +10,20 @@ from gmail_client import EmailGroup
 class SenderListScreen(Screen):
     """The main screen displaying the list of email groups."""
 
-    BINDINGS = [("ctrl+r", "refresh", "Refresh")]
+    BINDINGS = [
+        ("ctrl+r", "refresh", "Refresh"),
+        ("space", "toggle_selection", "Toggle Selection"),
+    ]
+
+    CSS = """
+    .selected-row {
+        background: $accent-darken-2;
+    }
+    """
 
     def __init__(self, email_groups: list[EmailGroup]):
         self.email_groups = email_groups
+        self.selected_rows = set()
         super().__init__()
 
     def compose(self):
@@ -23,8 +33,10 @@ class SenderListScreen(Screen):
 
     def on_mount(self) -> None:
         """Set up the table when the screen is mounted."""
+        table = self.query_one(DataTable)
+        table.cursor_type = "row"
         self.populate_table()
-        self.query_one(DataTable).focus()
+        table.focus()
 
     def populate_table(self) -> None:
         """Populate the DataTable with email group information."""
@@ -55,6 +67,21 @@ class SenderListScreen(Screen):
     def action_refresh(self) -> None:
         """Handle the refresh action."""
         self.app.action_refresh_scan()
+
+    def action_toggle_selection(self) -> None:
+        """Toggles the selection state of the currently focused row."""
+        table = self.query_one(DataTable)
+        if not table.row_count:
+            return
+
+        row_key = table.get_row_key(table.cursor_row)
+
+        if row_key in self.selected_rows:
+            self.selected_rows.remove(row_key)
+            table.remove_class("selected-row", row_key=row_key)
+        else:
+            self.selected_rows.add(row_key)
+            table.add_class("selected-row", row_key=row_key)
 
     @on(DataTable.RowSelected)
     def on_row_selected(self, event: DataTable.RowSelected) -> None:

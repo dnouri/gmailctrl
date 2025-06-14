@@ -47,19 +47,19 @@ This milestone focuses on creating the non-UI logic for fetching, parsing, and a
 
 This milestone involves building the user interface and connecting it to the core logic from Milestone 2.
 
--   [ ] **Task 3.1: Main Application Shell & Error Handling**
-    -   Set up the main Textual `App` class.
-    -   **Crucially**, implement a single, global exception handler. As per the design, any unhandled exception from any part of the application should be caught here. The handler must print the full exception traceback to `stderr` and then cleanly terminate the application. There should be minimal to no `try...except` blocks in the rest of the application code.
+-   [x] **Task 3.1: Main Application Shell & Error Handling**
+    -   [x] Set up the main Textual `App` class.
+    -   [x] **Crucially**, implement a single, global exception handler. As per the design, any unhandled exception from any part of the application should be caught here. The handler must print the full exception traceback to `stderr` and then cleanly terminate the application. There should be minimal to no `try...except` blocks in the rest of the application code.
 
--   [ ] **Task 3.2: Main Screen - Sender List View**
+-   [x] **Task 3.2: Main Screen - Sender List View**
     -   [x] This is the default screen after a successful login.
     -   [x] It should display a list of the sender groups.
     -   [x] The list must be sorted by the email count (descending).
     -   [x] Each item in the list must display the sender, the email count, and a visual indicator (e.g., a `[U]` tag) if the group contains `List-Unsubscribe` headers.
     -   [x] Implement a manual refresh mechanism (e.g., via a `Ctrl+R` key binding) that triggers a full re-scan and rebuilds the list.
     -   [x] Display a loading indicator during the initial scan and subsequent refreshes.
-    -   [ ] Implement multi-row selection (e.g., using the spacebar).
-    -   [ ] Provide a visual indicator for selected rows.
+    -   [x] Implement multi-row selection (e.g., using the spacebar).
+    -   [x] Provide a visual indicator for selected rows.
 
 -   [ ] **Task 3.3: Detail Screen - Group Detail View**
     -   [ ] This is a new, full-screen view that is displayed when a user selects a sender from the main list.
