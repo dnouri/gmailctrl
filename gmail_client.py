@@ -1,7 +1,7 @@
 import logging
 import os.path
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from email.utils import parseaddr, parsedate_to_datetime
 from typing import Any, Callable, Dict, List
 
@@ -18,6 +18,15 @@ GMAIL_API_BATCH_SIZE = 100
 
 
 @dataclass
+class IndividualEmail:
+    """Represents a single email's metadata."""
+
+    id: str
+    subject: str
+    date: datetime
+
+
+@dataclass
 class EmailGroup:
     """Represents a group of emails from a single sender."""
 
@@ -29,7 +38,7 @@ class EmailGroup:
     newest_subject: str
     total_attachments: int
     has_unsubscribe: bool
-    email_ids: List[str]
+    emails: List[IndividualEmail]
 
 
 def get_credentials() -> Credentials:
@@ -216,6 +225,15 @@ def analyze_and_group_emails(
         # Parse the date and handle potential timezone issues.
         date_header = get_header(headers, "Date")
         email_date = parsedate_to_datetime(date_header)
+
+        # Normalize all datetime objects to be offset-aware and in UTC.
+        if email_date.tzinfo is None:
+            # If the parsed date is naive, assume it's UTC.
+            email_date = email_date.replace(tzinfo=timezone.utc)
+        else:
+            # If it's aware, convert it to the UTC timezone.
+            email_date = email_date.astimezone(timezone.utc)
+
         subject = get_header(headers, "Subject")
 
         # Check for the presence of a List-Unsubscribe header.
@@ -229,6 +247,7 @@ def analyze_and_group_emails(
                     attachment_count += 1
 
         email_id = email_data["id"]
+        individual_email = IndividualEmail(id=email_id, subject=subject, date=email_date)
 
         # Create a new group or update an existing one.
         if sender_email not in groups:
@@ -241,7 +260,7 @@ def analyze_and_group_emails(
                 newest_subject=subject,
                 total_attachments=attachment_count,
                 has_unsubscribe=has_unsubscribe_header,
-                email_ids=[email_id],
+                emails=[individual_email],
             )
         else:
             group = groups[sender_email]
@@ -254,7 +273,7 @@ def analyze_and_group_emails(
                 group.newest_subject = subject
             if has_unsubscribe_header:
                 group.has_unsubscribe = True
-            group.email_ids.append(email_id)
+            group.emails.append(individual_email)
 
     logging.info(f"Grouped emails into {len(groups)} unique senders.")
     return list(groups.values())

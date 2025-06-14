@@ -51,25 +51,32 @@ This milestone involves building the user interface and connecting it to the cor
     -   Set up the main Textual `App` class.
     -   **Crucially**, implement a single, global exception handler. As per the design, any unhandled exception from any part of the application should be caught here. The handler must print the full exception traceback to `stderr` and then cleanly terminate the application. There should be minimal to no `try...except` blocks in the rest of the application code.
 
--   [x] **Task 3.2: Main Screen - Sender List View**
+-   [ ] **Task 3.2: Main Screen - Sender List View**
     -   [x] This is the default screen after a successful login.
     -   [x] It should display a list of the sender groups.
-    -   [x] The list must be sorted by the date of the most recent email in each group (newest first).
+    -   [x] The list must be sorted by the email count (descending).
     -   [x] Each item in the list must display the sender, the email count, and a visual indicator (e.g., a `[U]` tag) if the group contains `List-Unsubscribe` headers.
     -   [x] Implement a manual refresh mechanism (e.g., via a `Ctrl+R` key binding) that triggers a full re-scan and rebuilds the list.
-    -   [x] Display a loading indicator (e.g., a progress bar or a "Knight Rider" style animation) during the initial scan and subsequent refreshes.
+    -   [x] Display a loading indicator during the initial scan and subsequent refreshes.
+    -   [ ] Implement multi-row selection (e.g., using the spacebar).
+    -   [ ] Provide a visual indicator for selected rows.
 
 -   [ ] **Task 3.3: Detail Screen - Group Detail View**
-    -   This is a new, full-screen view that is displayed when a user selects a sender from the main list.
-    -   It must display the summary statistics for the selected group at the top.
-    -   Below the summary, it must display a list of all individual emails within that group, showing at least the subject and date of each email.
-    -   Provide two clear action buttons/options: `Archive All` and `Delete All`.
+    -   [ ] This is a new, full-screen view that is displayed when a user selects a sender from the main list.
+    -   [ ] It must display the summary statistics for the selected group at the top.
+    -   [ ] Below the summary, it must display a list of all individual emails within that group, showing at least the subject and date of each email.
+    -   [ ] Provide two clear action buttons/options: `Archive All` and `Delete All`.
 
 -   [ ] **Task 3.4: Implement Action and Navigation Flow**
-    -   When a user selects `Archive All` or `Delete All`, a confirmation dialog must be shown (e.g., "Are you sure you want to delete 57 emails from sender@example.com?").
-    -   Actions are only performed on the entire group. There is no functionality for selecting a subset of emails.
-    -   Upon confirmation, trigger the appropriate bulk action function from Milestone 2. A loading indicator should be displayed while the operation is in progress.
-    -   After a successful action, the application must automatically navigate back to the main sender list. The list should be updated to reflect the change (i.e., the group that was just actioned should no longer be visible).
+    -   [ ] **Sub-task 3.4.1: Main Screen Bulk Actions**
+        -   [ ] Add key bindings to trigger bulk archive/delete on selected rows (e.g., `a` and `d`).
+        -   [ ] Implement a confirmation dialog that summarizes the action (e.g., "Archive 123 emails from 4 senders?").
+        -   [ ] Upon confirmation, trigger the bulk action functions for all selected groups.
+        -   [ ] After the action, automatically refresh the sender list.
+    -   [ ] **Sub-task 3.4.2: Detail Screen Actions**
+        -   [ ] When a user selects `Archive All` or `Delete All` on the detail screen, show a confirmation dialog.
+        -   [ ] Upon confirmation, trigger the bulk action function for that single group.
+        -   [ ] After a successful action, navigate back to the main sender list and refresh it.
 
 ### Milestone 4: Testing Plan
 
