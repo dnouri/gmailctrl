@@ -1,79 +1,95 @@
-# Gmail Bulk Email Manager TUI: Developer TODO List
+# Attachment Downloader Feature - TODO
 
-This document outlines the development plan for a Textual-based TUI application designed to identify and manage bulk emails in a user's Gmail account.
+This document outlines the tasks required to implement the attachment downloader feature, based on our detailed discussion.
 
-## Milestones
+## 1. Core Application Flow & UI Changes (`main.py`, `screens.py`)
 
-### Milestone 1: Project Setup & Google Authentication
+This phase focuses on building the new user interface screens and updating the application's startup and navigation logic.
 
-The primary goal of this milestone is to establish the project foundation and implement a robust and secure authentication flow with Google's services.
+-   [ ] **Create a new `MainMenuScreen` in `screens.py`:**
+    -   This will be the new initial screen after authentication.
+    -   It should present two choices to the user:
+        1.  `Button("Manage Emails")`
+        2.  `Button("Download Attachments")`
 
--   [x] **Task 1.1: Initial Project Scaffolding**
-    -   [x] Set up the basic project structure, including `pyproject.toml` for dependencies (`textual`, `google-api-python-client`, `google-auth-oauthlib`).
-    -   [x] Create the main entry point file, `main.py`, with a basic Textual app structure.
-    -   [x] Implement a global exception handler in the main app class.
-    -   [x] Configure file-based logging to `gmailctrl.log`.
+-   [ ] **Create a new `DaysInputScreen` in `screens.py`:**
+    -   This should be a modal screen that prompts the user to enter the number of days to look back for attachments.
+    -   It should include a `TextInput` widget for the number and "OK" / "Cancel" buttons.
+    -   It should validate that the input is a positive integer.
 
--   [x] **Task 1.2: Implement OAuth 2.0 Authentication**
-    -   [x] Create a module to handle Google API authentication.
-    -   [x] The flow must be browser-based (OAuth 2.0 Installed Application flow).
-    -   [x] On the first run, the application should guide the user to authorize access via their web browser.
-    -   [x] Successfully obtained credentials (access and refresh tokens) must be stored securely on the user's local machine (e.g., in a file like `token.json`).
-    -   [x] On subsequent runs, the application should automatically use the stored refresh token to get a new access token without requiring user interaction, unless the token is revoked or expired.
+-   [ ] **Create a new `DownloadProgressScreen` in `screens.py`:**
+    -   This screen is displayed while the download is active.
+    -   It should be a non-interactive screen showing:
+        -   A `ProgressBar` for overall progress (e.g., attachments downloaded / total attachments found).
+        -   A `Static` widget for status updates (e.g., "Downloading `file.pdf` from `sender@example.com`...").
+    -   Since cancellation is not required, no "Cancel" button is needed.
 
-### Milestone 2: Core Gmail API Interaction Logic
+-   [ ] **Create a new `DownloadSummaryScreen` in `screens.py`:**
+    -   This screen is displayed after the download worker finishes (on success or failure).
+    -   **On success:** Display a table or formatted text with the results:
+        -   Header: "Download Complete"
+        -   For each sender/directory: `Directory`, `Files Downloaded`, `Total Size`.
+    -   **On failure:** Display the error message that stopped the process.
+        -   Header: "Download Failed"
+        -   Content: The specific error message.
+    -   It must include a `Button("Main Menu")` to dismiss the screen and return.
 
-This milestone focuses on creating the non-UI logic for fetching, parsing, and acting upon emails. This code should be independent of the TUI.
+-   [ ] **Modify `GmailCtrlApp.on_mount` in `main.py`:**
+    -   Change the logic to authenticate, and then `push_screen(MainMenuScreen())` instead of immediately fetching emails.
 
--   [x] **Task 2.1: Implement Email Fetching**
-    -   [x] Create a function to fetch a list of emails from the user's Gmail account.
-    -   [x] Initially, this function will only query for emails present in the `INBOX`.
-    -   [x] The number of recent emails to scan should be configurable, with a sensible default (e.g., 1000).
+-   [ ] **Update `GmailCtrlApp` navigation in `main.py`:**
+    -   Add methods to orchestrate the new flow: e.g., showing the `DaysInputScreen`, then running the download worker, and finally showing the `DownloadSummaryScreen`.
 
--   [x] **Task 2.2: Implement Email Grouping and Analysis**
-    -   [x] Create a function that takes a list of fetched emails and groups them by sender (`From` header).
-    -   [x] For each group, the function must compute the following summary statistics:
-        -   [x] Sender's name and email address.
-        -   [x] Total count of emails in the group.
-        -   [x] The date of the oldest and newest email in the group.
-        -   [x] The total count of attachments across all emails in the group.
-        -   [x] A boolean flag indicating if at least one email in the group contains a `List-Unsubscribe` header.
+## 2. Gmail API Interaction (`gmail_client.py`)
 
--   [x] **Task 2.3: Implement Bulk Action Functions**
-    -   [x] Create a function to bulk archive emails given a list of email IDs.
-    -   [x] Create a function to bulk delete (move to trash) emails given a list of email IDs.
+This phase adds the necessary functions to communicate with the Gmail API for fetching attachment information and content.
 
-### Milestone 3: Textual TUI Implementation
+-   [ ] **Create `fetch_attachment_metadata(...)` function:**
+    -   This function will query for messages that have attachments within a specific date range.
+    -   It should use the Gmail API query: `has:attachment newer_than:Xd` where `X` is the number of days.
+    -   It should parse the results to build a list of all individual attachments to be downloaded, including `messageId`, `attachmentId`, original `filename`, `size`, `sender`, and `emailDate`.
 
-This milestone involves building the user interface and connecting it to the core logic from Milestone 2.
+-   [ ] **Create `download_single_attachment(...)` function:**
+    -   This function will take a `messageId` and `attachmentId` as input.
+    -   It will call the `users.messages.attachments.get` API endpoint.
+    -   It should return the base64-decoded attachment data.
 
--   [x] **Task 3.1: Main Application Shell & Error Handling**
-    -   [x] Set up the main Textual `App` class.
-    -   [x] **Crucially**, implement a single, global exception handler. As per the design, any unhandled exception from any part of the application should be caught here. The handler must print the full exception traceback to `stderr` and then cleanly terminate the application. There should be minimal to no `try...except` blocks in the rest of the application code.
+## 3. Download and File System Logic (New Module: `file_handler.py`)
 
--   [x] **Task 3.2: Main Screen - Sender List View**
-    -   [x] This is the default screen after a successful login.
-    -   [x] It should display a list of the sender groups.
-    -   [x] The list must be sorted by the email count (descending).
-    -   [x] Each item in the list must display the sender, the email count, and a visual indicator (e.g., a `[U]` tag) if the group contains `List-Unsubscribe` headers.
-    -   [x] Implement a manual refresh mechanism (e.g., via a `Ctrl+R` key binding) that triggers a full re-scan and rebuilds the list.
-    -   [x] Display a loading indicator during the initial scan and subsequent refreshes.
-    -   [x] Implement multi-row selection (e.g., using the spacebar).
-    -   [x] Provide a visual indicator for selected rows.
+This phase implements the logic for writing files to the disk safely and correctly.
 
--   [x] **Task 3.3: Detail Screen - Group Detail View**
-    -   [x] This is a new, full-screen view that is displayed when a user selects a sender from the main list.
-    -   [x] It must display the summary statistics for the selected group at the top.
-    -   [x] Below the summary, it must display a list of all individual emails within that group, showing at least the subject and date of each email.
-    -   [x] Provide two clear action buttons/options: `Archive All` and `Delete All`.
+-   [ ] **Create a new file `file_handler.py`.**
 
--   [x] **Task 3.4: Implement Action and Navigation Flow**
-    -   [x] **Sub-task 3.4.1: Main Screen Bulk Actions**
-        -   [x] Add key bindings to trigger bulk archive/delete on selected rows (e.g., `a` and `d`).
-        -   [x] Implement a confirmation dialog that summarizes the action (e.g., "Archive 123 emails from 4 senders?").
-        -   [x] Upon confirmation, trigger the bulk action functions for all selected groups.
-        -   [x] After the action, automatically refresh the sender list.
-    -   [x] **Sub-task 3.4.2: Detail Screen Actions**
-        -   [x] When a user selects `Archive All` or `Delete All` on the detail screen, show a confirmation dialog.
-        -   [x] Upon confirmation, trigger the bulk action function for that single group.
-        -   [x] After a successful action, navigate back to the main sender list and refresh it.
+-   [ ] **Implement directory creation logic:**
+    -   Create the root `downloads/` directory if it doesn't exist.
+    -   For each sender, create a subdirectory. Sanitize the sender's email address to create a valid directory name (e.g., replace invalid characters).
+
+-   [ ] **Implement "safe download" logic:**
+    -   Downloads should first be written to a temporary file (e.g., in a `.tmp` subdirectory or with a `.tmp` extension).
+    -   Only after the download is fully complete should the file be moved to its final destination (`downloads/sender-email/filename.ext`). This prevents corrupt partial files.
+
+-   [ ] **Implement filename collision and skipping logic:**
+    -   Before downloading, check if the final target file already exists. If so, skip the download for that attachment.
+    -   When determining the final filename, if `filename.ext` already exists, try `filename-1.ext`, then `filename-2.ext`, and so on, until an unused name is found.
+
+-   [ ] **Implement file timestamp logic:**
+    -   After a file is successfully moved to its final destination, set its "last modified" timestamp to match the date of the email it came from.
+
+## 4. Worker and Orchestration (`main.py`)
+
+This phase ties everything together into a background worker process.
+
+-   [ ] **Create a new worker method `perform_attachment_download` in `GmailCtrlApp`:**
+    -   This worker will be triggered after the user provides the number of days.
+    -   It orchestrates the entire process:
+        1.  Switch to the `DownloadProgressScreen`.
+        2.  Call `gmail_client.fetch_attachment_metadata` to get the list of attachments.
+        3.  Loop through the list of attachments to download.
+        4.  For each attachment:
+            -   Use `file_handler` logic to determine the final path and check if it should be skipped.
+            -   If not skipping, call `gmail_client.download_single_attachment`.
+            -   Use `file_handler` to save the file safely.
+            -   Update the `DownloadProgressScreen` with progress.
+        5.  Implement the **fail-fast** logic: if any step fails, catch the exception, and immediately stop the loop.
+        6.  After the loop finishes (or fails), collect the summary data (files/sizes per directory or the error message).
+        7.  Use `call_from_thread` to switch to the `DownloadSummaryScreen` with the collected data.
