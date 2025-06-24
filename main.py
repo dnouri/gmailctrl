@@ -1,10 +1,12 @@
 import argparse
 import logging
 import sys
+import time
 import traceback
 from typing import List, Optional
 
 from google.oauth2.credentials import Credentials
+from textual import on
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, Static, LoadingIndicator, ProgressBar
 
@@ -16,7 +18,13 @@ from gmail_client import (
     bulk_archive_emails,
     bulk_delete_emails,
 )
-from screens import SenderListScreen
+from screens import (
+    SenderListScreen,
+    MainMenuScreen,
+    DaysInputScreen,
+    DownloadProgressScreen,
+    DownloadSummaryScreen,
+)
 
 
 class GmailCtrlApp(App):
@@ -45,8 +53,8 @@ class GmailCtrlApp(App):
 
     def on_mount(self) -> None:
         """Called when the app is mounted."""
-        logging.info("App mounted. Starting initial scan.")
-        self.run_worker(self.perform_initial_scan, exclusive=True, thread=True)
+        logging.info("App mounted. Starting authentication.")
+        self.run_worker(self.authenticate, exclusive=True, thread=True)
 
     def show_loading_indicator(self, show: bool) -> None:
         """Shows or hides the loading indicator and status message."""
@@ -71,11 +79,47 @@ class GmailCtrlApp(App):
 
         self.call_from_thread(do_update)
 
-    def perform_initial_scan(self) -> None:
-        """Worker that handles authentication and initial email fetching."""
+    def authenticate(self) -> None:
+        """Worker that handles authentication."""
         self.update_status("Authenticating... please check your browser if needed.")
         self.creds = get_credentials()
         logging.info("Authentication successful.")
+
+        # Hide loading indicator and push the main menu screen
+        self.call_from_thread(self.show_loading_indicator, False)
+        self.call_from_thread(self.push_screen, MainMenuScreen())
+
+    def action_manage_emails(self) -> None:
+        """Starts the email management flow."""
+        self.pop_screen()
+        self.show_loading_indicator(True)
+        self.run_worker(self.perform_initial_scan, exclusive=True, thread=True)
+
+    def action_download_attachments_start(self) -> None:
+        """Starts the attachment download flow by asking for days."""
+
+        def on_days_selected(days: int | None) -> None:
+            if days:
+                logging.info(f"User wants to download attachments from last {days} days.")
+
+                def worker() -> None:
+                    """Worker that calls the download method with the selected days."""
+                    self.perform_attachment_download(days)
+
+                self.run_worker(worker, exclusive=True, thread=True)
+
+        self.push_screen(DaysInputScreen(), on_days_selected)
+
+    def action_goto_main_menu(self) -> None:
+        """Pops the current screen to return to the main menu."""
+        self.pop_screen()
+
+    def perform_initial_scan(self) -> None:
+        """Worker that handles fetching and analyzing emails."""
+        if not self.creds:
+            logging.error("perform_initial_scan called without credentials.")
+            self.update_status("Error: Not authenticated.")
+            return
 
         emails = fetch_emails(
             creds=self.creds,
@@ -95,36 +139,53 @@ class GmailCtrlApp(App):
 
     def perform_refresh_scan(self) -> None:
         """Worker that handles refreshing the email data."""
-        emails = fetch_emails(
-            creds=self.creds,
-            status_callback=self.update_status,
-            progress_callback=self.update_progress,
-            limit=self.limit,
-        )
-        self.email_groups = analyze_and_group_emails(
-            emails=emails,
-            status_callback=self.update_status,
-            progress_callback=self.update_progress,
-        )
-
-        # Hide loading indicator and push the new main screen
-        self.call_from_thread(self.show_loading_indicator, False)
-        self.call_from_thread(self.push_screen, SenderListScreen(self.email_groups))
+        self.pop_screen()
+        self.show_loading_indicator(True)
+        self.perform_initial_scan()
 
     def action_refresh_scan(self) -> None:
         """Starts the refresh worker."""
-        if isinstance(self.screen, SenderListScreen):
-            self.pop_screen()
-        self.show_loading_indicator(True)
         self.run_worker(self.perform_refresh_scan, exclusive=True, thread=True)
+
+    def perform_attachment_download(self, days: int) -> None:
+        """Worker that handles attachment download. (Placeholder for Milestone 1)."""
+        # This worker simulates the download process to test the UI flow.
+        self.call_from_thread(self.pop_screen)  # Pop DaysInputScreen
+        self.call_from_thread(self.push_screen, DownloadProgressScreen())
+
+        try:
+            progress_screen = self.screen
+            assert isinstance(progress_screen, DownloadProgressScreen)
+            progress_bar = progress_screen.query_one(ProgressBar)
+            status_label = progress_screen.query_one("#progress_status")
+
+            self.call_from_thread(progress_bar.update, total=10)
+            for i in range(10):
+                self.call_from_thread(
+                    status_label.update, f"Downloading file {i + 1} of 10..."
+                )
+                self.call_from_thread(progress_bar.advance)
+                time.sleep(0.2)
+
+            summary_data = {
+                "some.sender@example.com": {"count": 5, "size": 1234567},
+                "another.sender@web.com": {"count": 2, "size": 876543},
+            }
+            error = None
+        except Exception as e:
+            logging.error(f"Error during placeholder download: {e}")
+            summary_data = {}
+            error = str(e)
+
+        self.call_from_thread(self.pop_screen)  # Pop DownloadProgressScreen
+        self.call_from_thread(self.push_screen, DownloadSummaryScreen(summary_data, error))
 
     def perform_bulk_action(self, email_ids: List[str], action: str) -> None:
         """
         Shows loading indicator and runs a bulk action (archive/delete) in a worker.
         Refreshes the list upon completion.
         """
-        if isinstance(self.screen, SenderListScreen):
-            self.pop_screen()
+        self.pop_screen()
         self.show_loading_indicator(True)
 
         def worker() -> None:
@@ -143,8 +204,7 @@ class GmailCtrlApp(App):
             )
 
             # After the action is complete, run the refresh logic.
-            # We are already in a worker thread, so we can call this directly.
-            self.perform_refresh_scan()
+            self.perform_initial_scan()
 
         self.run_worker(worker, exclusive=True, thread=True)
 

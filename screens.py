@@ -5,9 +5,142 @@ from textual import on
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll, Horizontal, Grid
 from textual.screen import Screen, ModalScreen
-from textual.widgets import Header, Footer, DataTable, Static, Button
+from textual.validation import Integer
+from textual.widgets import (
+    Header,
+    Footer,
+    DataTable,
+    Static,
+    Button,
+    Input,
+    ProgressBar,
+)
 
 from gmail_client import EmailGroup
+
+
+class MainMenuScreen(Screen):
+    """The main menu screen to choose an action."""
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Grid(
+            Button("Manage Emails", id="manage_emails", variant="primary"),
+            Button("Download Attachments", id="download_attachments", variant="primary"),
+            id="main_menu",
+        )
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.query_one("#manage_emails", Button).focus()
+
+    @on(Button.Pressed)
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "manage_emails":
+            self.app.action_manage_emails()
+        elif event.button.id == "download_attachments":
+            self.app.action_download_attachments_start()
+
+
+class DaysInputScreen(ModalScreen[int | None]):
+    """A modal screen to get the number of days for attachment download."""
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Static("Download attachments from the last N days."),
+            Input(
+                placeholder="Enter a positive number",
+                id="days_input",
+                validators=[Integer()],
+            ),
+            Horizontal(
+                Button("OK", variant="primary", id="ok"),
+                Button("Cancel", variant="default", id="cancel"),
+                classes="buttons",
+            ),
+            id="days_input_dialog",
+        )
+
+    def on_mount(self) -> None:
+        """Focus the input when the screen is mounted."""
+        self.query_one(Input).focus()
+
+    @on(Button.Pressed)
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Dismiss the screen, returning the number of days or None."""
+        if event.button.id == "ok":
+            try:
+                text_input = self.query_one(Input)
+                if not text_input.is_valid:
+                    self.app.bell()
+                    return
+
+                days = int(text_input.value)
+                if days > 0:
+                    self.dismiss(days)
+                else:
+                    self.app.bell()
+            except (ValueError, TypeError):
+                self.app.bell()
+        else:
+            self.dismiss(None)
+
+
+class DownloadProgressScreen(Screen):
+    """A screen to show download progress."""
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield VerticalScroll(
+            Static("Downloading attachments...", id="progress_header"),
+            ProgressBar(id="progress_bar", show_eta=False),
+            Static(id="progress_status"),
+            id="progress_container",
+        )
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.query_one(ProgressBar).total = None
+
+
+class DownloadSummaryScreen(Screen):
+    """A screen to show the summary of the download operation."""
+
+    def __init__(self, summary_data: dict, error: str | None):
+        self.summary_data = summary_data
+        self.error = error
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with VerticalScroll(id="summary_scroll"):
+            if self.error:
+                yield Static("[bold red]Download Failed[/bold red]", id="summary_header")
+                yield Static(self.error, id="summary_content")
+            else:
+                yield Static(
+                    "[bold green]Download Complete[/bold green]", id="summary_header"
+                )
+                table = DataTable()
+                table.add_column("Directory", width=50)
+                table.add_column("Files Downloaded", width=20)
+                table.add_column("Total Size", width=20)
+                for directory, stats in self.summary_data.items():
+                    # Basic size formatting for the placeholder
+                    size_mb = stats["size"] / 1_048_576
+                    table.add_row(
+                        directory, str(stats["count"]), f"{size_mb:.2f} MB"
+                    )
+                yield table
+        yield Button("Main Menu", id="main_menu_button", variant="primary")
+        yield Footer()
+    
+    def on_mount(self) -> None:
+        self.query_one("#main_menu_button").focus()
+
+    @on(Button.Pressed, "#main_menu_button")
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.app.action_goto_main_menu()
 
 
 class ConfirmationScreen(ModalScreen[bool]):

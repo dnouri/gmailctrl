@@ -6,25 +6,25 @@ This document outlines the tasks required to implement the attachment downloader
 
 This phase focuses on building the new user interface screens and updating the application's startup and navigation logic.
 
--   [ ] **Create a new `MainMenuScreen` in `screens.py`:**
+-   [x] **Create a new `MainMenuScreen` in `screens.py`:**
     -   This will be the new initial screen after authentication.
     -   It should present two choices to the user:
         1.  `Button("Manage Emails")`
         2.  `Button("Download Attachments")`
 
--   [ ] **Create a new `DaysInputScreen` in `screens.py`:**
+-   [x] **Create a new `DaysInputScreen` in `screens.py`:**
     -   This should be a modal screen that prompts the user to enter the number of days to look back for attachments.
     -   It should include a `TextInput` widget for the number and "OK" / "Cancel" buttons.
     -   It should validate that the input is a positive integer.
 
--   [ ] **Create a new `DownloadProgressScreen` in `screens.py`:**
+-   [x] **Create a new `DownloadProgressScreen` in `screens.py`:**
     -   This screen is displayed while the download is active.
     -   It should be a non-interactive screen showing:
         -   A `ProgressBar` for overall progress (e.g., attachments downloaded / total attachments found).
         -   A `Static` widget for status updates (e.g., "Downloading `file.pdf` from `sender@example.com`...").
     -   Since cancellation is not required, no "Cancel" button is needed.
 
--   [ ] **Create a new `DownloadSummaryScreen` in `screens.py`:**
+-   [x] **Create a new `DownloadSummaryScreen` in `screens.py`:**
     -   This screen is displayed after the download worker finishes (on success or failure).
     -   **On success:** Display a table or formatted text with the results:
         -   Header: "Download Complete"
@@ -34,10 +34,10 @@ This phase focuses on building the new user interface screens and updating the a
         -   Content: The specific error message.
     -   It must include a `Button("Main Menu")` to dismiss the screen and return.
 
--   [ ] **Modify `GmailCtrlApp.on_mount` in `main.py`:**
+-   [x] **Modify `GmailCtrlApp.on_mount` in `main.py`:**
     -   Change the logic to authenticate, and then `push_screen(MainMenuScreen())` instead of immediately fetching emails.
 
--   [ ] **Update `GmailCtrlApp` navigation in `main.py`:**
+-   [x] **Update `GmailCtrlApp` navigation in `main.py`:**
     -   Add methods to orchestrate the new flow: e.g., showing the `DaysInputScreen`, then running the download worker, and finally showing the `DownloadSummaryScreen`.
 
 ## 2. Gmail API Interaction (`gmail_client.py`)
