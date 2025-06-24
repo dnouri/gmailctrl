@@ -11,6 +11,7 @@ from textual import on
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, Static, LoadingIndicator, ProgressBar
 
+import file_handler
 from gmail_client import (
     get_credentials,
     fetch_emails,
@@ -19,6 +20,7 @@ from gmail_client import (
     bulk_archive_emails,
     bulk_delete_emails,
     fetch_attachment_metadata,
+    download_single_attachment,
 )
 from screens import (
     SenderListScreen,
@@ -157,6 +159,7 @@ class GmailCtrlApp(App):
         summary_data = {}
         error = None
         try:
+            # Step 1: Fetch metadata for all attachments.
             attachments = fetch_attachment_metadata(
                 creds=self.creds,
                 days=days,
@@ -165,25 +168,64 @@ class GmailCtrlApp(App):
             )
 
             if not attachments:
-                self.update_status("No attachments found to download.")
+                self.update_status("No new attachments found to download.")
+                self.call_from_thread(
+                    self.query_one(ProgressBar).update, total=1, progress=1
+                )
                 time.sleep(2)  # Give user time to read the message
             else:
-                # This part is still a placeholder for testing.
-                # We are not downloading files yet, just summarizing what was found.
-                self.update_status("Simulating download...")
-                time.sleep(1)
+                total_attachments = len(attachments)
+                self.update_status(
+                    f"Found {total_attachments} attachments. Starting download."
+                )
+                logging.info(
+                    f"Found {total_attachments} attachments. Starting download."
+                )
+
+                # Step 2: Loop through metadata and download each attachment.
                 summary = defaultdict(lambda: {"count": 0, "size": 0})
-                for att in attachments:
+                for i, att in enumerate(attachments):
+                    self.update_status(
+                        f"Downloading '{att.filename}' ({i + 1}/{total_attachments})"
+                    )
+                    self.update_progress(i + 1, total_attachments)
+
+                    # Download the actual attachment content.
+                    content = download_single_attachment(
+                        creds=self.creds,
+                        message_id=att.message_id,
+                        attachment_id=att.attachment_id,
+                    )
+
+                    # Save the attachment using the file handler.
+                    file_handler.save_attachment(
+                        content=content,
+                        sender=att.sender,
+                        original_filename=att.filename,
+                        email_date=att.email_date,
+                    )
+
+                    # Update summary data.
                     summary[att.sender]["count"] += 1
                     summary[att.sender]["size"] += att.size
+
                 summary_data = dict(summary)
+                self.update_status("Download process completed successfully.")
+                logging.info("Download process completed successfully.")
+                time.sleep(1)  # Brief pause on completion
 
         except Exception as e:
             logging.error(f"Error during attachment download: {e}", exc_info=True)
-            error = str(e)
+            # The error will be displayed on the summary screen.
+            error = f"An error occurred: {e}"
+            self.update_status(error)
+            time.sleep(2)  # Show error before switching screen
 
+        # Step 3: Show the summary screen.
         self.call_from_thread(self.pop_screen)  # Pop DownloadProgressScreen
-        self.call_from_thread(self.push_screen, DownloadSummaryScreen(summary_data, error))
+        self.call_from_thread(
+            self.push_screen, DownloadSummaryScreen(summary_data, error)
+        )
 
     def perform_bulk_action(self, email_ids: List[str], action: str) -> None:
         """
@@ -196,7 +238,9 @@ class GmailCtrlApp(App):
         def worker() -> None:
             """The work to be done in the background."""
             action_name_capitalized = action.capitalize()
-            self.update_status(f"{action_name_capitalized}ing {len(email_ids)} emails...")
+            self.update_status(
+                f"{action_name_capitalized}ing {len(email_ids)} emails..."
+            )
 
             action_func = (
                 bulk_archive_emails if action == "archive" else bulk_delete_emails
@@ -226,7 +270,9 @@ class GmailCtrlApp(App):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="A TUI to manage bulk email in Gmail.")
+    parser = argparse.ArgumentParser(
+        description="A TUI to manage bulk email in Gmail."
+    )
     parser.add_argument(
         "--limit",
         type=int,

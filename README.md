@@ -52,11 +52,13 @@ When you run `gmailctrl` for the first time, it will automatically open a new ta
 
 ## Usage
 
-After the initial scan, you will be presented with the main screen, which lists all email groups found in your inbox, sorted by the number of messages from each sender.
+After authenticating, you will be presented with a main menu.
 
-### Main View & Keybindings
+### Email Management
 
-The main view is a table of all sender groups. You can navigate this list with the arrow keys.
+Selecting "Manage Emails" starts the original `gmailctrl` experience. After an initial scan, you will be presented with the main screen, which lists all email groups found in your inbox, sorted by the number of messages from each sender.
+
+#### Main View & Keybindings
 
 | Key         | Action                                                 |
 |-------------|--------------------------------------------------------|
@@ -69,6 +71,17 @@ The main view is a table of all sender groups. You can navigate this list with t
 
 Actions like archiving and deleting will always ask for confirmation.
 
-### Detail View
+#### Detail View
 
 Pressing `Enter` on a sender group opens the detail view. This screen shows a summary for that specific group and provides `Archive` and `Delete` buttons to act on all emails from only that sender. After the action is complete, you will be returned to the main list, which will be refreshed.
+
+### Attachment Downloader
+
+Selecting "Download Attachments" from the main menu allows you to download all attachments from your inbox over a specified period.
+
+1.  You will be prompted to enter the number of days to look back.
+2.  The application will then find all attachments from that period and download them.
+3.  Files are saved to a `downloads/` directory in the folder where you run `gmailctrl`.
+4.  Inside `downloads/`, subdirectories are created for each sender's email address (e.g., `downloads/some.sender@example.com/`).
+5.  If a file with the same name already exists in the target directory, a number is appended to the new file's name (e.g., `invoice-1.pdf`) to prevent overwriting.
+6.  The creation/modification time of each downloaded file is set to match the date of the email it was attached to.

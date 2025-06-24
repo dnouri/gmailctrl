@@ -58,28 +58,28 @@ This phase adds the necessary functions to communicate with the Gmail API for fe
 
 This phase implements the logic for writing files to the disk safely and correctly.
 
--   [ ] **Create a new file `file_handler.py`.**
+-   [x] **Create a new file `file_handler.py`.**
 
--   [ ] **Implement directory creation logic:**
+-   [x] **Implement directory creation logic:**
     -   Create the root `downloads/` directory if it doesn't exist.
     -   For each sender, create a subdirectory. Sanitize the sender's email address to create a valid directory name (e.g., replace invalid characters).
 
--   [ ] **Implement "safe download" logic:**
+-   [x] **Implement "safe download" logic:**
     -   Downloads should first be written to a temporary file (e.g., in a `.tmp` subdirectory or with a `.tmp` extension).
     -   Only after the download is fully complete should the file be moved to its final destination (`downloads/sender-email/filename.ext`). This prevents corrupt partial files.
 
--   [ ] **Implement filename collision and skipping logic:**
+-   [x] **Implement filename collision and skipping logic:**
     -   Before downloading, check if the final target file already exists. If so, skip the download for that attachment.
     -   When determining the final filename, if `filename.ext` already exists, try `filename-1.ext`, then `filename-2.ext`, and so on, until an unused name is found.
 
--   [ ] **Implement file timestamp logic:**
+-   [x] **Implement file timestamp logic:**
     -   After a file is successfully moved to its final destination, set its "last modified" timestamp to match the date of the email it came from.
 
 ## 4. Worker and Orchestration (`main.py`)
 
 This phase ties everything together into a background worker process.
 
--   [ ] **Create a new worker method `perform_attachment_download` in `GmailCtrlApp`:**
+-   [x] **Create a new worker method `perform_attachment_download` in `GmailCtrlApp`:**
     -   This worker will be triggered after the user provides the number of days.
     -   It orchestrates the entire process:
         1.  Switch to the `DownloadProgressScreen`.
