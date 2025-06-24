@@ -44,12 +44,12 @@ This phase focuses on building the new user interface screens and updating the a
 
 This phase adds the necessary functions to communicate with the Gmail API for fetching attachment information and content.
 
--   [ ] **Create `fetch_attachment_metadata(...)` function:**
+-   [x] **Create `fetch_attachment_metadata(...)` function:**
     -   This function will query for messages that have attachments within a specific date range.
     -   It should use the Gmail API query: `has:attachment newer_than:Xd` where `X` is the number of days.
     -   It should parse the results to build a list of all individual attachments to be downloaded, including `messageId`, `attachmentId`, original `filename`, `size`, `sender`, and `emailDate`.
 
--   [ ] **Create `download_single_attachment(...)` function:**
+-   [x] **Create `download_single_attachment(...)` function:**
     -   This function will take a `messageId` and `attachmentId` as input.
     -   It will call the `users.messages.attachments.get` API endpoint.
     -   It should return the base64-decoded attachment data.

@@ -3,6 +3,7 @@ import logging
 import sys
 import time
 import traceback
+from collections import defaultdict
 from typing import List, Optional
 
 from google.oauth2.credentials import Credentials
@@ -17,6 +18,7 @@ from gmail_client import (
     EmailGroup,
     bulk_archive_emails,
     bulk_delete_emails,
+    fetch_attachment_metadata,
 )
 from screens import (
     SenderListScreen,
@@ -148,33 +150,36 @@ class GmailCtrlApp(App):
         self.run_worker(self.perform_refresh_scan, exclusive=True, thread=True)
 
     def perform_attachment_download(self, days: int) -> None:
-        """Worker that handles attachment download. (Placeholder for Milestone 1)."""
-        # This worker simulates the download process to test the UI flow.
+        """Worker that handles attachment download."""
         self.call_from_thread(self.pop_screen)  # Pop DaysInputScreen
         self.call_from_thread(self.push_screen, DownloadProgressScreen())
 
+        summary_data = {}
+        error = None
         try:
-            progress_screen = self.screen
-            assert isinstance(progress_screen, DownloadProgressScreen)
-            progress_bar = progress_screen.query_one(ProgressBar)
-            status_label = progress_screen.query_one("#progress_status")
+            attachments = fetch_attachment_metadata(
+                creds=self.creds,
+                days=days,
+                status_callback=self.update_status,
+                progress_callback=self.update_progress,
+            )
 
-            self.call_from_thread(progress_bar.update, total=10)
-            for i in range(10):
-                self.call_from_thread(
-                    status_label.update, f"Downloading file {i + 1} of 10..."
-                )
-                self.call_from_thread(progress_bar.advance)
-                time.sleep(0.2)
+            if not attachments:
+                self.update_status("No attachments found to download.")
+                time.sleep(2)  # Give user time to read the message
+            else:
+                # This part is still a placeholder for testing.
+                # We are not downloading files yet, just summarizing what was found.
+                self.update_status("Simulating download...")
+                time.sleep(1)
+                summary = defaultdict(lambda: {"count": 0, "size": 0})
+                for att in attachments:
+                    summary[att.sender]["count"] += 1
+                    summary[att.sender]["size"] += att.size
+                summary_data = dict(summary)
 
-            summary_data = {
-                "some.sender@example.com": {"count": 5, "size": 1234567},
-                "another.sender@web.com": {"count": 2, "size": 876543},
-            }
-            error = None
         except Exception as e:
-            logging.error(f"Error during placeholder download: {e}")
-            summary_data = {}
+            logging.error(f"Error during attachment download: {e}", exc_info=True)
             error = str(e)
 
         self.call_from_thread(self.pop_screen)  # Pop DownloadProgressScreen

@@ -1,3 +1,4 @@
+import base64
 import logging
 import os.path
 from dataclasses import dataclass
@@ -39,6 +40,18 @@ class EmailGroup:
     total_attachments: int
     has_unsubscribe: bool
     emails: List[IndividualEmail]
+
+
+@dataclass
+class AttachmentMetadata:
+    """Represents the metadata for a single downloadable attachment."""
+
+    message_id: str
+    attachment_id: str
+    sender: str
+    email_date: datetime
+    filename: str
+    size: int
 
 
 def get_credentials() -> Credentials:
@@ -86,6 +99,14 @@ def get_credentials() -> Credentials:
 
     logging.info("Successfully obtained credentials.")
     return creds
+
+
+def _get_header(headers: List[Dict[str, str]], name: str) -> str:
+    """Extracts a header value from a list of headers."""
+    for header in headers:
+        if header["name"].lower() == name.lower():
+            return header["value"]
+    return ""
 
 
 def fetch_emails(
@@ -206,13 +227,6 @@ def analyze_and_group_emails(
 
     groups: Dict[str, EmailGroup] = {}
 
-    def get_header(headers: List[Dict[str, str]], name: str) -> str:
-        """Extracts a header value from a list of headers."""
-        for header in headers:
-            if header["name"].lower() == name.lower():
-                return header["value"]
-        return ""
-
     for i, email_data in enumerate(emails):
         processed_count = i + 1
         if processed_count % 100 == 0:
@@ -222,14 +236,14 @@ def analyze_and_group_emails(
         headers = email_data.get("payload", {}).get("headers", [])
 
         # Parse sender from the 'From' header.
-        from_header = get_header(headers, "From")
+        from_header = _get_header(headers, "From")
         sender_name, sender_email = parseaddr(from_header)
         if not sender_email:
             logging.warning(f"Could not parse sender from header: '{from_header}'")
             continue  # Skip emails where a sender email cannot be determined.
 
         # Parse the date and handle potential timezone issues.
-        date_header = get_header(headers, "Date")
+        date_header = _get_header(headers, "Date")
         email_date = parsedate_to_datetime(date_header)
 
         # Normalize all datetime objects to be offset-aware and in UTC.
@@ -240,10 +254,10 @@ def analyze_and_group_emails(
             # If it's aware, convert it to the UTC timezone.
             email_date = email_date.astimezone(timezone.utc)
 
-        subject = get_header(headers, "Subject")
+        subject = _get_header(headers, "Subject")
 
         # Check for the presence of a List-Unsubscribe header.
-        has_unsubscribe_header = bool(get_header(headers, "List-Unsubscribe"))
+        has_unsubscribe_header = bool(_get_header(headers, "List-Unsubscribe"))
 
         # Count attachments by checking for parts with a 'filename'.
         attachment_count = 0
@@ -283,6 +297,142 @@ def analyze_and_group_emails(
 
     logging.info(f"Grouped emails into {len(groups)} unique senders.")
     return list(groups.values())
+
+
+def _find_attachments_in_parts(parts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Recursively search through message parts to find attachments."""
+    attachments = []
+    for part in parts:
+        if part.get("filename") and part.get("body", {}).get("attachmentId"):
+            attachments.append(part)
+        if "parts" in part:
+            attachments.extend(_find_attachments_in_parts(part["parts"]))
+    return attachments
+
+
+def fetch_attachment_metadata(
+    creds: Credentials,
+    days: int,
+    status_callback: Callable[[str], None],
+    progress_callback: Callable[[int, int], None],
+) -> List[AttachmentMetadata]:
+    """
+    Fetches metadata for all attachments in emails within a given number of days.
+    """
+    logging.info(
+        f"Starting fetch for attachment metadata from the last {days} days."
+    )
+    service = build("gmail", "v1", credentials=creds)
+    query = f"has:attachment newer_than:{days}d"
+    status_callback(f"Searching for emails with attachments from last {days} days...")
+
+    messages = []
+    page_token = None
+    while True:
+        request = (
+            service.users()
+            .messages()
+            .list(userId="me", labelIds=["INBOX"], q=query, pageToken=page_token)
+        )
+        response = request.execute()
+        messages.extend(response.get("messages", []))
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
+
+    if not messages:
+        logging.info("No messages with attachments found for the given criteria.")
+        status_callback("No attachments found.")
+        return []
+
+    msg_count = len(messages)
+    status_callback(f"Found {msg_count} emails. Fetching details...")
+    logging.info(f"Found {msg_count} emails with attachments. Fetching details.")
+
+    full_emails: List[Dict[str, Any]] = []
+
+    def batch_callback(request_id, response, exception):
+        if exception:
+            logging.error(f"Batch request {request_id} failed: {exception}")
+        else:
+            full_emails.append(response)
+
+    for i in range(0, msg_count, GMAIL_API_BATCH_SIZE):
+        chunk = messages[i : i + GMAIL_API_BATCH_SIZE]
+        processed_count = i + len(chunk)
+        status_callback(
+            f"Fetching email details... ({processed_count}/{msg_count})"
+        )
+        progress_callback(processed_count, msg_count)
+
+        batch = service.new_batch_http_request(callback=batch_callback)
+        for msg in chunk:
+            batch.add(
+                service.users().messages().get(userId="me", id=msg["id"], format="full")
+            )
+        batch.execute()
+
+    attachments_metadata: List[AttachmentMetadata] = []
+    total_emails = len(full_emails)
+    status_callback(f"Analyzing {total_emails} emails for attachments...")
+    logging.info(f"Analyzing {total_emails} emails for attachment parts.")
+
+    for i, email_data in enumerate(full_emails):
+        progress_callback(i + 1, total_emails)
+        headers = email_data.get("payload", {}).get("headers", [])
+        _, sender_email = parseaddr(_get_header(headers, "From"))
+        if not sender_email:
+            continue
+
+        email_date = parsedate_to_datetime(_get_header(headers, "Date"))
+        if email_date.tzinfo is None:
+            email_date = email_date.replace(tzinfo=timezone.utc)
+        else:
+            email_date = email_date.astimezone(timezone.utc)
+
+        attachment_parts = []
+        if "parts" in email_data.get("payload", {}):
+            attachment_parts = _find_attachments_in_parts(
+                email_data["payload"]["parts"]
+            )
+
+        for part in attachment_parts:
+            attachments_metadata.append(
+                AttachmentMetadata(
+                    message_id=email_data["id"],
+                    attachment_id=part["body"]["attachmentId"],
+                    sender=sender_email,
+                    email_date=email_date,
+                    filename=part["filename"],
+                    size=part["body"]["size"],
+                )
+            )
+
+    logging.info(
+        f"Found {len(attachments_metadata)} attachments in {total_emails} emails."
+    )
+    status_callback(f"Found {len(attachments_metadata)} attachments to download.")
+    return attachments_metadata
+
+
+def download_single_attachment(
+    creds: Credentials, message_id: str, attachment_id: str
+) -> bytes:
+    """Downloads a single attachment and returns its raw byte content."""
+    logging.info(
+        f"Downloading attachment {attachment_id} from message {message_id}."
+    )
+    service = build("gmail", "v1", credentials=creds)
+    request = (
+        service.users()
+        .messages()
+        .attachments()
+        .get(userId="me", messageId=message_id, id=attachment_id)
+    )
+    attachment = request.execute()
+    encoded_data = attachment["data"]
+    # The data is base64url encoded, which is slightly different from standard base64.
+    return base64.urlsafe_b64decode(encoded_data)
 
 
 def _perform_bulk_action(
