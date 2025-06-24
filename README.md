@@ -6,9 +6,21 @@ A TUI to manage bulk email in Gmail.
 
 ## Motivation
 
-Struggling with an overflowing inbox? Much of it is likely "graymail"—newsletters, notifications, and promotional content that, while not spam, clutters your digital life. Managing this in Gmail's web interface is slow. `gmailctrl` is a fast, keyboard-driven terminal application built to solve this. It groups emails by sender, letting you archive or delete large volumes of messages with a few keystrokes, making inbox cleanup fast and efficient.
+Is your Gmail inbox overflowing? Between newsletters, notifications, and promotional content, it's easy to lose track of what's important. On top of that, finding and downloading attachments scattered across hundreds of emails can be a tedious, manual process.
+
+`gmailctrl` is a fast, keyboard-driven terminal application designed to help you take back control of your Gmail account. It offers two powerful features to tackle digital clutter:
+
+1.  **Efficient Graymail Management:** It groups emails by sender, letting you archive or delete large volumes of messages with a few keystrokes, making inbox cleanup fast and efficient.
+2.  **Bulk Attachment Downloader:** It allows you to easily download all attachments from a specified period (e.g., the last 30 days). Files are automatically organized into folders by sender and named with the email date, creating a clean, local archive of your important documents.
+
+Whether you're clearing out old subscriptions or gathering financial documents for your records, `gmailctrl` streamlines the process, saving you time and frustration.
 
 This project, including its source code and this documentation, was written entirely using AI.
+
+## Key Dependencies
+
+*   [Textual](https://github.com/Textualize/textual) for the terminal user interface.
+*   [Google API Client Library for Python](https://github.com/googleapis/google-api-python-client) for interacting with the Gmail API.
 
 ## Installation
 
@@ -56,7 +68,7 @@ After authenticating, you will be presented with a main menu.
 
 ### Email Management
 
-Selecting "Manage Emails" starts the original `gmailctrl` experience. After an initial scan, you will be presented with the main screen, which lists all email groups found in your inbox, sorted by the number of messages from each sender.
+Selecting "Manage Emails" starts the email management workflow. After an initial scan, you will be presented with the main screen, which lists all email groups found in your inbox, sorted by the number of messages from each sender.
 
 #### Main View & Keybindings
 
@@ -83,5 +95,6 @@ Selecting "Download Attachments" from the main menu allows you to download all a
 2.  The application will then find all attachments from that period and download them.
 3.  Files are saved to a `downloads/` directory in the folder where you run `gmailctrl`.
 4.  Inside `downloads/`, subdirectories are created for each sender's email address (e.g., `downloads/some.sender@example.com/`).
-5.  If a file with the same name already exists in the target directory, a number is appended to the new file's name (e.g., `invoice-1.pdf`) to prevent overwriting.
-6.  The creation/modification time of each downloaded file is set to match the date of the email it was attached to.
+5.  Downloaded files are named using the format `YYYY-MM-DD - originalfilename.pdf` to ensure they are sorted chronologically.
+6.  If a file with the exact same name and date already exists, a numeric suffix is added to prevent overwrites (e.g., `2025-03-03 - report-1.pdf`).
+7.  The creation/modification time of each downloaded file is also set to match the date of the email it was attached to.
